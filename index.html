@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multilingual App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+    <!-- Firebase Libraries -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        
+        // Firebase initialization using globals
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+        // Check if config is provided before initializing
+        if (Object.keys(firebaseConfig).length > 0) {
+            const app = initializeApp(firebaseConfig);
+            window.db = getFirestore(app);
+            window.auth = getAuth(app);
+            
+            // Authenticate the user
+            (async () => {
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                try {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(window.auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(window.auth);
+                    }
+                } catch (error) {
+                    console.error("Firebase authentication error:", error);
+                }
+            })();
+        } else {
+            console.error("Firebase config is missing. The database will not work.");
+        }
+    </script>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <!-- Main Container -->
+    <div class="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm">
+
+        <!-- Language Selector -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-xl font-bold text-gray-800" id="title-text"></h1>
+            <select id="language-selector" class="rounded-lg p-2 bg-gray-100 text-gray-700">
+                <option value="en">English</option>
+                <option value="ru">Русский</option>
+                <option value="ky">Кыргызча</option>
+            </select>
+        </div>
+
+        <!-- Barcode Scanner Section -->
+        <div id="scanner-container" class="space-y-4">
+            <div id="scanner" class="w-full h-64 bg-gray-200 rounded-lg overflow-hidden"></div>
+            <div id="scanner-buttons" class="flex justify-center space-x-2">
+                <button id="start-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-blue-700 transition-colors">
+                    <span id="start-text"></span>
+                </button>
+                <button id="stop-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-red-700 transition-colors hidden">
+                    <span id="stop-text"></span>
+                </button>
+            </div>
+            <p id="scanning-status" class="text-center text-sm font-medium text-gray-500"></p>
+        </div>
+        
+        <!-- Manual Input Section -->
+        <div id="manual-input-section" class="mt-4 pt-4 border-t">
+            <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
+                <input type="text" id="manual-barcode-input" placeholder="Enter barcode number" class="w-full rounded-lg p-2 border border-gray-300">
+                <button id="manual-submit-btn" class="w-full sm:w-auto bg-gray-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-gray-600 transition-colors">Submit</button>
+            </div>
+        </div>
+
+        <!-- Product Details Section -->
+        <div id="product-details" class="mt-6 border-t pt-4 hidden">
+            <h2 class="text-lg font-semibold text-gray-800" id="result-title"></h2>
+            <div id="product-info" class="mt-2 space-y-2">
+                <!-- Product info will be dynamically added here -->
+            </div>
+        </div>
+        
+        <!-- Add Product Section -->
+        <div id="add-product-section" class="mt-8 pt-4 border-t hidden">
+            <p id="add-product-message" class="text-center text-red-500 font-medium mb-4"></p>
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Add a New Product</h2>
+            <form id="add-product-form" class="space-y-4">
+                <input type="text" id="add-barcode" placeholder="Barcode" required class="w-full rounded-lg p-2 border border-gray-300" readonly>
+                <input type="text" id="add-image-url" placeholder="Product Image URL (optional)" class="w-full rounded-lg p-2 border border-gray-300">
+                <input type="text" id="add-name-en" placeholder="Product Name (EN)" required class="w-full rounded-lg p-2 border border-gray-300">
+                <input type="text" id="add-name-ru" placeholder="Product Name (RU)" required class="w-full rounded-lg p-2 border border-gray-300">
+                <input type="text" id="add-name-ky" placeholder="Product Name (KY)" required class="w-full rounded-lg p-2 border border-gray-300">
+                <input type="text" id="add-description-en" placeholder="Description (EN)" required class="w-full rounded-lg p-2 border border-gray-300">
+                <input type="text" id="add-description-ru" placeholder="Description (RU)" required class="w-full rounded-lg p-2 border border-gray-300">
+                <input type="text" id="add-description-ky" placeholder="Description (KY)" required class="w-full rounded-lg p-2 border border-gray-300">
+                <input type="text" id="add-price" placeholder="Price (e.g., $19.99)" required class="w-full rounded-lg p-2 border border-gray-300">
+                <div class="flex justify-between space-x-2">
+                    <button type="submit" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-green-700 transition-colors">Add Product</button>
+                    <button type="button" id="cancel-btn" class="w-full bg-gray-400 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-gray-500 transition-colors">Cancel</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+
+    <!-- Message Box -->
+    <div id="message-box" class="fixed top-4 right-4 bg-gray-800 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-transform transform translate-x-full"></div>
+
+
+    <script>
+        // Use a dedicated global for the app state
+        const App = {
+            html5QrCode: null,
+            lastScannedResult: null,
+        };
+
+        const translations = {
+            en: {
+                title: 'Scan Product',
+                start: 'Start Scanning',
+                stop: 'Stop Scanning',
+                scanning: 'Scanning...',
+                resultTitle: 'Scanned Result:',
+                notFound: 'Product not found. Please enter details below.',
+                addProductMessage: 'Product not found. Please enter details below.',
+                productAdded: 'Product added successfully!',
+                failedToAdd: 'Failed to add product.',
+                enterBarcode: 'Enter barcode number'
+            },
+            ru: {
+                title: 'Сканировать продукт',
+                start: 'Начать сканирование',
+                stop: 'Остановить сканирование',
+                scanning: 'Сканирование...',
+                resultTitle: 'Результат сканирования:',
+                notFound: 'Продукт не найден. Пожалуйста, введите данные ниже.',
+                addProductMessage: 'Продукт не найден. Пожалуйста, введите данные ниже.',
+                productAdded: 'Продукт успешно добавлен!',
+                failedToAdd: 'Не удалось добавить продукт.',
+                enterBarcode: 'Введите номер штрих-кода'
+            },
+            ky: {
+                title: 'Продуктту скандаңыз',
+                start: 'Сканерлөөнү баштоо',
+                stop: 'Сканерлөөнү токтотуу',
+                scanning: 'Сканерлеп жатат...',
+                resultTitle: 'Сканерлөөнүн жыйынтыгы:',
+                notFound: 'Продукт табылган жок. Сураныч, төмөндө маалыматтарды киргизиңиз.',
+                addProductMessage: 'Продукт табылган жок. Сураныч, төмөндө маалыматтарды киргизиңиз.',
+                productAdded: 'Продукт ийгиликтүү кошулду!',
+                failedToAdd: 'Продукт кошуу мүмкүн болгон жок.',
+                enterBarcode: 'Штрих-код номерин киргизиңиз'
+            }
+        };
+
+        const elements = {
+            languageSelector: document.getElementById('language-selector'),
+            titleText: document.getElementById('title-text'),
+            startBtn: document.getElementById('start-btn'),
+            stopBtn: document.getElementById('stop-btn'),
+            startText: document.getElementById('start-text'),
+            stopText: document.getElementById('stop-text'),
+            scanningStatus: document.getElementById('scanning-status'),
+            scanner: document.getElementById('scanner'),
+            productDetails: document.getElementById('product-details'),
+            resultTitle: document.getElementById('result-title'),
+            productInfo: document.getElementById('product-info'),
+            messageBox: document.getElementById('message-box'),
+            addProductSection: document.getElementById('add-product-section'),
+            addProductForm: document.getElementById('add-product-form'),
+            addProductMessage: document.getElementById('add-product-message'),
+            addBarcode: document.getElementById('add-barcode'),
+            addImageUrl: document.getElementById('add-image-url'),
+            addNameEn: document.getElementById('add-name-en'),
+            addNameRu: document.getElementById('add-name-ru'),
+            addNameKy: document.getElementById('add-name-ky'),
+            addDescriptionEn: document.getElementById('add-description-en'),
+            addDescriptionRu: document.getElementById('add-description-ru'),
+            addDescriptionKy: document.getElementById('add-description-ky'),
+            addPrice: document.getElementById('add-price'),
+            cancelBtn: document.getElementById('cancel-btn'),
+            manualBarcodeInput: document.getElementById('manual-barcode-input'),
+            manualSubmitBtn: document.getElementById('manual-submit-btn')
+        };
+        
+        // Function to show a temporary message box instead of `alert()`
+        function showMessage(message, duration = 3000) {
+            elements.messageBox.textContent = message;
+            elements.messageBox.classList.remove('translate-x-full');
+            elements.messageBox.classList.add('translate-x-0');
+
+            setTimeout(() => {
+                elements.messageBox.classList.remove('translate-x-0');
+                elements.messageBox.classList.add('translate-x-full');
+            }, duration);
+        }
+
+        function showSection(sectionId) {
+            document.getElementById(sectionId).classList.remove('hidden');
+        }
+
+        function hideSection(sectionId) {
+            document.getElementById(sectionId).classList.add('hidden');
+        }
+
+        // Function to translate the UI based on the selected language
+        function translateUI(lang) {
+            const t = translations[lang];
+            elements.titleText.textContent = t.title;
+            elements.startText.textContent = t.start;
+            elements.stopText.textContent = t.stop;
+            elements.resultTitle.textContent = t.resultTitle;
+            elements.scanningStatus.textContent = '';
+            elements.addProductMessage.textContent = t.addProductMessage;
+            elements.manualBarcodeInput.placeholder = t.enterBarcode;
+            hideSection('product-details');
+            hideSection('add-product-section');
+        }
+
+        // Function to handle the barcode scan success
+        async function onScanSuccess(decodedText) {
+            // Stop scanning once a result is found
+            if (App.html5QrCode && App.html5QrCode.isScanning) {
+                App.html5QrCode.stop().then(() => {
+                    elements.startBtn.classList.remove('hidden');
+                    elements.stopBtn.classList.add('hidden');
+                    elements.scanningStatus.textContent = '';
+                }).catch(err => {
+                    console.error("Failed to stop scanning.", err);
+                });
+            }
+            
+            const lang = elements.languageSelector.value;
+            const t = translations[lang];
+            elements.productInfo.innerHTML = ''; // Clear previous content
+
+            try {
+                // Get the product from Firestore
+                const productDocRef = doc(window.db, "artifacts", "__app_id", "public", "data", "products", decodedText);
+                const productDoc = await getDoc(productDocRef);
+
+                if (productDoc.exists()) {
+                    const product = productDoc.data();
+                    const productName = product.name[lang] || product.name['en'];
+                    const productDescription = product.description[lang] || product.description['en'];
+                    const productPrice = product.price;
+                    const imageUrl = product.imageUrl || '';
+                    
+                    let imageHtml = imageUrl ? `<img src="${imageUrl}" class="rounded-lg shadow-sm mb-2" alt="${productName}" onerror="this.style.display='none'">` : '';
+
+                    elements.productInfo.innerHTML = `
+                        ${imageHtml}
+                        <div class="p-3 bg-gray-100 rounded-lg">
+                            <p class="font-bold">${productName}</p>
+                            <p class="text-sm text-gray-600">${productDescription}</p>
+                            <p class="text-sm text-gray-800 font-semibold mt-1">Price: ${productPrice}</p>
+                        </div>
+                    `;
+                    showSection('product-details');
+                    hideSection('add-product-section');
+                } else {
+                    // Product not found, show the add product form
+                    showMessage(t.addProductMessage);
+                    elements.addBarcode.value = decodedText;
+                    hideSection('scanner-container');
+                    hideSection('product-details');
+                    showSection('add-product-section');
+                }
+            } catch (error) {
+                console.error("Error getting product data:", error);
+                elements.productInfo.innerHTML = `<p class="text-red-500 font-medium">Error retrieving data.</p>`;
+                showSection('product-details');
+                hideSection('add-product-section');
+            }
+        }
+
+        // Event listener for the language selector
+        elements.languageSelector.addEventListener('change', (event) => {
+            const lang = event.target.value;
+            translateUI(lang);
+        });
+
+        // Event listener for manual barcode submission
+        elements.manualSubmitBtn.addEventListener('click', () => {
+            const barcode = elements.manualBarcodeInput.value;
+            if (barcode) {
+                onScanSuccess(barcode);
+            } else {
+                showMessage("Please enter a barcode number.");
+            }
+        });
+
+        // Event listeners for the scanner buttons
+        elements.startBtn.addEventListener('click', () => {
+            const lang = elements.languageSelector.value;
+            const t = translations[lang];
+            
+            // Re-initialize the scanner on start
+            App.html5QrCode = new Html5Qrcode('scanner');
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 }
+            };
+
+            // Start the scanning process
+            App.html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+                .then(() => {
+                    elements.startBtn.classList.add('hidden');
+                    elements.stopBtn.classList.remove('hidden');
+                    elements.scanningStatus.textContent = t.scanning;
+                    hideSection('product-details');
+                    hideSection('add-product-section');
+                    showMessage(t.scanning);
+                })
+                .catch(err => {
+                    console.error("Failed to start scanning.", err);
+                    elements.scanningStatus.textContent = "Error: Cannot access camera.";
+                    showMessage("Error: Cannot access camera.");
+                });
+        });
+
+        elements.stopBtn.addEventListener('click', () => {
+            if (App.html5QrCode && App.html5QrCode.isScanning) {
+                App.html5QrCode.stop().then(() => {
+                    elements.startBtn.classList.remove('hidden');
+                    elements.stopBtn.classList.add('hidden');
+                    elements.scanningStatus.textContent = '';
+                    showMessage(translations[elements.languageSelector.value].stop);
+                }).catch(err => {
+                    console.error("Failed to stop scanning.", err);
+                });
+            }
+        });
+        
+        // Event listener for the cancel button
+        elements.cancelBtn.addEventListener('click', () => {
+            showSection('scanner-container');
+            hideSection('add-product-section');
+            elements.addProductForm.reset();
+        });
+
+        // Event listener for the add product form
+        elements.addProductForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const barcode = elements.addBarcode.value;
+            
+            const newProduct = {
+                imageUrl: elements.addImageUrl.value,
+                name: {
+                    en: elements.addNameEn.value,
+                    ru: elements.addNameRu.value,
+                    ky: elements.addNameKy.value
+                },
+                description: {
+                    en: elements.addDescriptionEn.value,
+                    ru: elements.addDescriptionRu.value,
+                    ky: elements.addDescriptionKy.value
+                },
+                price: elements.addPrice.value,
+            };
+
+            try {
+                // Add the new product to Firestore
+                const productDocRef = doc(window.db, "artifacts", "__app_id", "public", "data", "products", barcode);
+                await setDoc(productDocRef, newProduct);
+                showMessage(translations[elements.languageSelector.value].productAdded);
+                elements.addProductForm.reset();
+                showSection('scanner-container');
+                hideSection('add-product-section');
+            } catch (error) {
+                console.error("Error adding product: ", error);
+                showMessage(translations[elements.languageSelector.value].failedToAdd);
+            }
+        });
+
+        // Initial UI translation on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            translateUI('en');
+        });
+    </script>
+</body>
+</html>
