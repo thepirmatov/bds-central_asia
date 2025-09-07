@@ -302,7 +302,7 @@
         });
 
         // Event listeners for the scanner buttons
-        elements.startBtn.addEventListener('click', () => {
+        elements.startBtn.addEventListener('click', async () => {
             const lang = elements.languageSelector.value;
             const t = translations[lang];
             
@@ -314,21 +314,32 @@
                 qrbox: { width: 250, height: 250 }
             };
 
-            // Start the scanning process
-            App.html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
-                .then(() => {
-                    elements.startBtn.classList.add('hidden');
-                    elements.stopBtn.classList.remove('hidden');
-                    elements.scanningStatus.textContent = t.scanning;
-                    hideSection('product-details');
-                    hideSection('add-product-section');
-                    showMessage(t.scanning);
-                })
-                .catch(err => {
-                    console.error("Failed to start scanning.", err);
+            const preferredFacingMode = "environment";
+            const fallbackFacingMode = "user";
+
+            try {
+                // Try to start with the preferred camera (back camera)
+                await App.html5QrCode.start({ facingMode: preferredFacingMode }, config, onScanSuccess);
+            } catch (err) {
+                console.error("Failed to start with environment camera, trying fallback:", err);
+                // If that fails, try the user-facing camera as a fallback
+                try {
+                    await App.html5QrCode.start({ facingMode: fallbackFacingMode }, config, onScanSuccess);
+                } catch (fallbackErr) {
+                    console.error("Failed to start with user camera.", fallbackErr);
                     elements.scanningStatus.textContent = "Error: Cannot access camera.";
-                    showMessage("Error: Cannot access camera.");
-                });
+                    showMessage("Error: Cannot access camera. Please check your browser's camera permissions.");
+                    return; // Exit if both attempts fail
+                }
+            }
+
+            // If we successfully started a camera (either one)
+            elements.startBtn.classList.add('hidden');
+            elements.stopBtn.classList.remove('hidden');
+            elements.scanningStatus.textContent = t.scanning;
+            hideSection('product-details');
+            hideSection('add-product-section');
+            showMessage(t.scanning);
         });
 
         elements.stopBtn.addEventListener('click', () => {
