@@ -33,8 +33,11 @@
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
         // Initialize Firestore and Auth and set global references
-        window.db = getFirestore(app);
-        window.auth = getAuth(app);
+    window.db = getFirestore(app);
+    window.auth = getAuth(app);
+    window.doc = doc;
+    window.setDoc = setDoc;
+    window.getDoc = getDoc;
     </script>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
@@ -242,34 +245,69 @@
             elements.productInfo.innerHTML = ''; // Clear previous content
 
             try {
-                // Get the product from Firestore
-                const productDocRef = doc(window.db, "artifacts", "__app_id", "public", "data", "products", decodedText);
+                // Get the product from Firestore (products collection)
+                const productDocRef = doc(window.db, "products", decodedText);
                 const productDoc = await getDoc(productDocRef);
 
                 if (productDoc.exists()) {
                     const product = productDoc.data();
-                    const productName = product.name[lang] || product.name['en'];
-                    const productDescription = product.description[lang] || product.description['en'];
-                    const productPrice = product.price;
-                    const productCompany = product.company || '';
-                    const imageFront = product.imageFront || '';
-                    const imageSide = product.imageSide || '';
+                    const productName = product.name?.[lang] || product.name?.en || '';
+                    const productDescription = product.description?.[lang] || product.description?.en || '';
+                    const imageFrontUrl = product.imageFrontUrl || '';
+                    const imageBackUrl = product.imageBackUrl || '';
+                    const isSafe = product.isSafe;
+                    const producer = product.producer || '';
+                    const contents = Array.isArray(product.contents) ? product.contents : [];
 
                     let imageHtml = '';
-                    if (imageFront) {
-                        imageHtml += `<img src="${imageFront}" class="rounded-lg shadow-sm mb-2" alt="${productName} (Front)" onerror="this.style.display='none'">`;
+                    if (imageFrontUrl) {
+                        imageHtml += `<img src="${imageFrontUrl}" class="rounded-lg shadow-sm mb-2" alt="${productName} (Front)" onerror="this.style.display='none'">`;
                     }
-                    if (imageSide) {
-                        imageHtml += `<img src="${imageSide}" class="rounded-lg shadow-sm mb-2" alt="${productName} (Side)" onerror="this.style.display='none'">`;
+                    if (imageBackUrl) {
+                        imageHtml += `<img src="${imageBackUrl}" class="rounded-lg shadow-sm mb-2" alt="${productName} (Back)" onerror="this.style.display='none'">`;
+                    }
+
+                    let safetyHtml = `<span class="inline-block px-2 py-1 rounded-full text-xs font-semibold ${isSafe ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}">${isSafe ? 'Safe' : 'Not Safe'}</span>`;
+
+                    let contentsHtml = '';
+                    if (contents.length > 0) {
+                        contentsHtml = `<div class="mt-2"><span class="font-semibold">Contents:</span> <span>${contents.join(', ')}</span></div>`;
+                    }
+
+                    let nameHtml = '';
+                    if (product.name) {
+                        nameHtml = `<div class="mt-2">
+                            <span class="font-semibold">Names:</span>
+                            <ul class="list-disc ml-5">
+                                <li>EN: ${product.name.en || ''}</li>
+                                <li>RU: ${product.name.ru || ''}</li>
+                                <li>KG: ${product.name.kg || ''}</li>
+                            </ul>
+                        </div>`;
+                    }
+
+                    let descHtml = '';
+                    if (product.description) {
+                        descHtml = `<div class="mt-2">
+                            <span class="font-semibold">Descriptions:</span>
+                            <ul class="list-disc ml-5">
+                                <li>EN: ${product.description.en || ''}</li>
+                                <li>RU: ${product.description.ru || ''}</li>
+                                <li>KG: ${product.description.kg || ''}</li>
+                            </ul>
+                        </div>`;
                     }
 
                     elements.productInfo.innerHTML = `
                         ${imageHtml}
                         <div class="p-3 bg-gray-100 rounded-lg">
-                            <p class="font-bold">${productName}</p>
+                            <p class="font-bold text-lg">${productName}</p>
                             <p class="text-sm text-gray-600">${productDescription}</p>
-                            <p class="text-sm text-gray-800 font-semibold mt-1">Company: ${productCompany}</p>
-                            <p class="text-sm text-gray-800 font-semibold mt-1">Price: ${productPrice}</p>
+                            <p class="text-sm text-gray-800 font-semibold mt-1">Producer: ${producer}</p>
+                            ${safetyHtml}
+                            ${contentsHtml}
+                            ${nameHtml}
+                            ${descHtml}
                         </div>
                         <p class="text-green-600 font-medium mt-2">Product found. If you want to review or update, please contact support.</p>
                     `;
@@ -426,8 +464,8 @@
             };
 
             try {
-                // Add the new product to Firestore
-                const productDocRef = doc(window.db, "artifacts", "__app_id", "public", "data", "products", barcode);
+                // Add the new product to Firestore (products collection)
+                const productDocRef = doc(window.db, "products", barcode);
                 await setDoc(productDocRef, newProduct);
                 showMessage('Product submitted for review. Thank you!');
                 elements.addProductForm.reset();
