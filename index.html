@@ -121,7 +121,7 @@
     <script>
         // Use a dedicated global for the app state
         const App = {
-            html5QrCode: null,
+            html5Qrcode: null,
             lastScannedResult: null,
         };
 
@@ -231,8 +231,8 @@
         // Function to handle the barcode scan success
         async function onScanSuccess(decodedText) {
             // Stop scanning once a result is found
-            if (App.html5QrCode && App.html5QrCode.isScanning) {
-                App.html5QrCode.stop().then(() => {
+            if (App.html5Qrcode && App.html5Qrcode.isScanning) {
+                App.html5Qrcode.stop().then(() => {
                     elements.startBtn.classList.remove('hidden');
                     elements.stopBtn.classList.add('hidden');
                     elements.scanningStatus.textContent = '';
@@ -307,7 +307,7 @@
             const t = translations[lang];
             
             // Re-initialize the scanner on start
-            App.html5QrCode = new Html5QrCode('scanner');
+            App.html5Qrcode = new Html5Qrcode('scanner');
 
             // Improved config: larger qrbox and enable 1D barcodes
             const config = {
@@ -331,12 +331,12 @@
 
             try {
                 // Try to start with the preferred camera (back camera)
-                await App.html5QrCode.start({ facingMode: preferredFacingMode }, config, onScanSuccess);
+                await App.html5Qrcode.start({ facingMode: preferredFacingMode }, config, onScanSuccess);
             } catch (err) {
                 console.error("Failed to start with environment camera, trying fallback:", err);
                 // If that fails, try the user-facing camera as a fallback
                 try {
-                    await App.html5QrCode.start({ facingMode: fallbackFacingMode }, config, onScanSuccess);
+                    await App.html5Qrcode.start({ facingMode: fallbackFacingMode }, config, onScanSuccess);
                 } catch (fallbackErr) {
                     console.error("Failed to start with user camera.", fallbackErr);
                     elements.scanningStatus.textContent = "Error: Cannot access camera.";
@@ -355,8 +355,8 @@
         });
 
         elements.stopBtn.addEventListener('click', () => {
-            if (App.html5QrCode && App.html5QrCode.isScanning) {
-                App.html5QrCode.stop().then(() => {
+            if (App.html5Qrcode && App.html5Qrcode.isScanning) {
+                App.html5Qrcode.stop().then(() => {
                     elements.startBtn.classList.remove('hidden');
                     elements.stopBtn.classList.add('hidden');
                     elements.scanningStatus.textContent = '';
