@@ -14,36 +14,27 @@
     </style>
     <!-- Firebase Libraries -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-        
-        // Firebase initialization using globals
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 
-        // Check if config is provided before initializing
-        if (Object.keys(firebaseConfig).length > 0) {
-            const app = initializeApp(firebaseConfig);
-            window.db = getFirestore(app);
-            window.auth = getAuth(app);
-            
-            // Authenticate the user
-            (async () => {
-                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                try {
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(window.auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(window.auth);
-                    }
-                } catch (error) {
-                    console.error("Firebase authentication error:", error);
-                }
-            })();
-        } else {
-            console.error("Firebase config is missing. The database will not work.");
-        }
+        const firebaseConfig = {
+            apiKey: "AIzaSyC9ImykUXTxz62yQqlsmKwHvZVPJm8-DlM",
+            authDomain: "bds-central-asia.firebaseapp.com",
+            projectId: "bds-central-asia",
+            storageBucket: "bds-central-asia.firebasestorage.app",
+            messagingSenderId: "1090797281337",
+            appId: "1:1090797281337:web:89fff1f4d9976328ec6de8",
+            measurementId: "G-SRC4WVR687"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        // Initialize Firestore and Auth and set global references
+        window.db = getFirestore(app);
+        window.auth = getAuth(app);
     </script>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
