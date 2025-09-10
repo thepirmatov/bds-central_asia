@@ -94,10 +94,14 @@
         <!-- Add Product Section -->
         <div id="add-product-section" class="mt-8 pt-4 border-t hidden">
             <p id="add-product-message" class="text-center text-red-500 font-medium mb-4"></p>
-            <h2 class="text-lg font-bold text-gray-800 mb-4">Add a New Product</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Add a New Product for Review</h2>
             <form id="add-product-form" class="space-y-4">
                 <input type="text" id="add-barcode" placeholder="Barcode" required class="w-full rounded-lg p-2 border border-gray-300" readonly>
-                <input type="text" id="add-image-url" placeholder="Product Image URL (optional)" class="w-full rounded-lg p-2 border border-gray-300">
+                <input type="text" id="add-company" placeholder="Company Name (Producer)" required class="w-full rounded-lg p-2 border border-gray-300">
+                <label class="block text-sm font-medium text-gray-700">Product Image (Front)</label>
+                <input type="file" id="add-image-front" accept="image/*" required class="w-full rounded-lg p-2 border border-gray-300">
+                <label class="block text-sm font-medium text-gray-700">Product Image (Side)</label>
+                <input type="file" id="add-image-side" accept="image/*" required class="w-full rounded-lg p-2 border border-gray-300">
                 <input type="text" id="add-name-en" placeholder="Product Name (EN)" required class="w-full rounded-lg p-2 border border-gray-300">
                 <input type="text" id="add-name-ru" placeholder="Product Name (RU)" required class="w-full rounded-lg p-2 border border-gray-300">
                 <input type="text" id="add-name-ky" placeholder="Product Name (KY)" required class="w-full rounded-lg p-2 border border-gray-300">
@@ -106,7 +110,7 @@
                 <input type="text" id="add-description-ky" placeholder="Description (KY)" required class="w-full rounded-lg p-2 border border-gray-300">
                 <input type="text" id="add-price" placeholder="Price (e.g., $19.99)" required class="w-full rounded-lg p-2 border border-gray-300">
                 <div class="flex justify-between space-x-2">
-                    <button type="submit" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-green-700 transition-colors">Add Product</button>
+                    <button type="submit" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-green-700 transition-colors">Submit for Review</button>
                     <button type="button" id="cancel-btn" class="w-full bg-gray-400 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-gray-500 transition-colors">Cancel</button>
                 </div>
             </form>
@@ -181,6 +185,7 @@
             addProductForm: document.getElementById('add-product-form'),
             addProductMessage: document.getElementById('add-product-message'),
             addBarcode: document.getElementById('add-barcode'),
+            addCompany: document.getElementById('add-company'),
             addImageUrl: document.getElementById('add-image-url'),
             addNameEn: document.getElementById('add-name-en'),
             addNameRu: document.getElementById('add-name-ru'),
@@ -255,23 +260,33 @@
                     const productName = product.name[lang] || product.name['en'];
                     const productDescription = product.description[lang] || product.description['en'];
                     const productPrice = product.price;
-                    const imageUrl = product.imageUrl || '';
-                    
-                    let imageHtml = imageUrl ? `<img src="${imageUrl}" class="rounded-lg shadow-sm mb-2" alt="${productName}" onerror="this.style.display='none'">` : '';
+                    const productCompany = product.company || '';
+                    const imageFront = product.imageFront || '';
+                    const imageSide = product.imageSide || '';
+
+                    let imageHtml = '';
+                    if (imageFront) {
+                        imageHtml += `<img src="${imageFront}" class="rounded-lg shadow-sm mb-2" alt="${productName} (Front)" onerror="this.style.display='none'">`;
+                    }
+                    if (imageSide) {
+                        imageHtml += `<img src="${imageSide}" class="rounded-lg shadow-sm mb-2" alt="${productName} (Side)" onerror="this.style.display='none'">`;
+                    }
 
                     elements.productInfo.innerHTML = `
                         ${imageHtml}
                         <div class="p-3 bg-gray-100 rounded-lg">
                             <p class="font-bold">${productName}</p>
                             <p class="text-sm text-gray-600">${productDescription}</p>
+                            <p class="text-sm text-gray-800 font-semibold mt-1">Company: ${productCompany}</p>
                             <p class="text-sm text-gray-800 font-semibold mt-1">Price: ${productPrice}</p>
                         </div>
+                        <p class="text-green-600 font-medium mt-2">Product found. If you want to review or update, please contact support.</p>
                     `;
                     showSection('product-details');
                     hideSection('add-product-section');
                 } else {
                     // Product not found, show the add product form
-                    showMessage(t.addProductMessage);
+                    showMessage('Product not found. Please add product info and upload images from two angles.');
                     elements.addBarcode.value = decodedText;
                     hideSection('scanner-container');
                     hideSection('product-details');
@@ -378,33 +393,58 @@
         elements.addProductForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             const barcode = elements.addBarcode.value;
-            
+            // Handle image uploads (front and side)
+            const imageFrontFile = elements.addImageFront.files[0];
+            const imageSideFile = elements.addImageSide.files[0];
+
+            // For demo: convert images to base64 (in production, upload to storage and save URLs)
+            function toBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            let imageFrontBase64 = '';
+            let imageSideBase64 = '';
+            if (imageFrontFile) {
+                imageFrontBase64 = await toBase64(imageFrontFile);
+            }
+            if (imageSideFile) {
+                imageSideBase64 = await toBase64(imageSideFile);
+            }
+
             const newProduct = {
-                imageUrl: elements.addImageUrl.value,
+                imageFront: imageFrontBase64,
+                imageSide: imageSideBase64,
                 name: {
                     en: elements.addNameEn.value,
                     ru: elements.addNameRu.value,
                     ky: elements.addNameKy.value
                 },
+                company: elements.addCompany.value,
                 description: {
                     en: elements.addDescriptionEn.value,
                     ru: elements.addDescriptionRu.value,
                     ky: elements.addDescriptionKy.value
                 },
                 price: elements.addPrice.value,
+                reviewStatus: 'pending'
             };
 
             try {
                 // Add the new product to Firestore
                 const productDocRef = doc(window.db, "artifacts", "__app_id", "public", "data", "products", barcode);
                 await setDoc(productDocRef, newProduct);
-                showMessage(translations[elements.languageSelector.value].productAdded);
+                showMessage('Product submitted for review. Thank you!');
                 elements.addProductForm.reset();
                 showSection('scanner-container');
                 hideSection('add-product-section');
             } catch (error) {
                 console.error("Error adding product: ", error);
-                showMessage(translations[elements.languageSelector.value].failedToAdd);
+                showMessage('Failed to submit product for review.');
             }
         });
 
