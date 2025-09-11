@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC9ImykUXTxz62yQqlsmKwHvZVPJm8-DlM",
+            authDomain: "bds-central-asia.firebaseapp.com",
+            projectId: "bds-central-asia",
+            storageBucket: "bds-central-asia.firebasestorage.app",
+            messagingSenderId: "1090797281337",
+            appId: "1:1090797281337:web:89fff1f4d9976328ec6de8",
+            measurementId: "G-SRC4WVR687"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Elements
+        const loginSection = document.getElementById('login-section');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const productList = document.getElementById('product-list');
+        const userInfo = document.getElementById('user-info');
+        const messageBox = document.getElementById('message-box');
+
+        // Show message
+        function showMessage(msg, color = 'bg-blue-600') {
+            messageBox.textContent = msg;
+            messageBox.className = `fixed top-4 right-4 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 ${color}`;
+            setTimeout(() => { messageBox.textContent = ''; }, 3000);
+        }
+
+        // Auth state
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // Get user info from Firestore
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (!userDoc.exists()) {
+                    // Save user info if not exists
+                    await setDoc(doc(db, 'users', user.uid), {
+                        email: user.email,
+                        role: 'reviewer', // default role
+                        createdAt: new Date().toISOString()
+                    });
+                }
+                const userData = userDoc.exists() ? userDoc.data() : { email: user.email, role: 'reviewer' };
+                userInfo.textContent = `Logged in as: ${userData.email} (${userData.role})`;
+                loginSection.classList.add('hidden');
+                dashboardSection.classList.remove('hidden');
+                loadProducts(userData.role);
+            } else {
+                loginSection.classList.remove('hidden');
+                dashboardSection.classList.add('hidden');
+                userInfo.textContent = '';
+            }
+        });
+
+        // Login
+        loginBtn.addEventListener('click', async () => {
+            try {
+                await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+            } catch (err) {
+                showMessage('Login failed: ' + err.message, 'bg-red-600');
+            }
+        });
+
+        // Logout
+        logoutBtn.addEventListener('click', async () => {
+            await signOut(auth);
+        });
+
+        // Load products pending review
+        async function loadProducts(role) {
+            productList.innerHTML = '<div class="text-gray-500">Loading...</div>';
+            const q = query(collection(db, 'product'), where('reviewStatus', '==', 'pending'));
+            const snapshot = await getDocs(q);
+            if (snapshot.empty) {
+                productList.innerHTML = '<div class="text-gray-500">No products pending review.</div>';
+                return;
+            }
+            productList.innerHTML = '';
+            snapshot.forEach(docSnap => {
+                const p = docSnap.data();
+                const barcode = docSnap.id;
+                productList.innerHTML += `
+                <div class="bg-white rounded-lg shadow p-4 mb-4">
+                    <div class="font-bold">Barcode: ${barcode}</div>
+                    <div>Name: ${p.name?.en || ''}</div>
+                    <div>Company: ${p.company || ''}</div>
+                    <div class="flex space-x-2 mt-2">
+                        ${p.imageFront ? `<img src="${p.imageFront}" class="w-20 h-20 object-cover rounded" alt="Front">` : ''}
+                        ${p.imageBack ? `<img src="${p.imageBack}" class="w-20 h-20 object-cover rounded" alt="Back">` : ''}
+                        ${p.imageContents ? `<img src="${p.imageContents}" class="w-20 h-20 object-cover rounded" alt="Contents">` : ''}
+                    </div>
+                    <div class="mt-2">
+                        <button class="bg-green-600 text-white px-3 py-1 rounded mr-2" onclick="window.reviewProduct('${barcode}', 'safe')">Mark Safe</button>
+                        <button class="bg-red-600 text-white px-3 py-1 rounded mr-2" onclick="window.reviewProduct('${barcode}', 'not safe')">Mark Not Safe</button>
+                        <button class="bg-yellow-600 text-white px-3 py-1 rounded" onclick="window.reviewProduct('${barcode}', 'pending')">Keep Pending</button>
+                    </div>
+                </div>
+                `;
+            });
+        }
+
+        // Review product (update status)
+        window.reviewProduct = async (barcode, status) => {
+            try {
+                // Get current user
+                const user = auth.currentUser;
+                let reviewedBy = '';
+                let reviewedRole = '';
+                if (user) {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    reviewedBy = user.email;
+                    reviewedRole = userDoc.exists() ? userDoc.data().role : 'reviewer';
+                }
+                await updateDoc(doc(db, 'product', barcode), {
+                    reviewStatus: status,
+                    reviewedBy: reviewedBy,
+                    reviewedRole: reviewedRole,
+                    reviewedAt: new Date().toISOString()
+                });
+                showMessage('Product updated!');
+                loadProducts();
+            } catch (err) {
+                showMessage('Failed to update: ' + err.message, 'bg-red-600');
+            }
+        };
+    </script>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+    <div id="message-box"></div>
+    <div id="login-section" class="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm">
+        <h1 class="text-xl font-bold mb-4">Admin Login</h1>
+        <input type="email" id="email" placeholder="Email" class="w-full rounded-lg p-2 border border-gray-300 mb-2">
+        <input type="password" id="password" placeholder="Password" class="w-full rounded-lg p-2 border border-gray-300 mb-4">
+        <button id="login-btn" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-blue-700 transition-colors">Login</button>
+    </div>
+    <div id="dashboard-section" class="hidden w-full max-w-2xl">
+        <div class="flex justify-between items-center mb-6">
+            <div id="user-info" class="font-semibold text-gray-700"></div>
+            <button id="logout-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-gray-600 transition-colors">Logout</button>
+        </div>
+        <h2 class="text-lg font-bold mb-4">Products Pending Review</h2>
+        <div id="product-list"></div>
+    </div>
+</body>
+</html>
