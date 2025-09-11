@@ -12,7 +12,6 @@
             background-color: #f3f4f6;
         }
     </style>
-    <!-- Firebase Libraries -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
@@ -42,10 +41,8 @@
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
 
-    <!-- Main Container -->
     <div class="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm">
 
-        <!-- Language Selector -->
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-xl font-bold text-gray-800" id="title-text"></h1>
             <select id="language-selector" class="rounded-lg p-2 bg-gray-100 text-gray-700">
@@ -55,7 +52,6 @@
             </select>
         </div>
 
-        <!-- Barcode Scanner Section -->
         <div id="scanner-container" class="space-y-4">
             <div id="scanner" class="w-full h-64 bg-gray-200 rounded-lg overflow-hidden"></div>
             <div id="scanner-buttons" class="flex justify-center space-x-2">
@@ -69,7 +65,6 @@
             <p id="scanning-status" class="text-center text-sm font-medium text-gray-500"></p>
         </div>
         
-        <!-- Manual Input Section -->
         <div id="manual-input-section" class="mt-4 pt-4 border-t">
             <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
                 <input type="text" id="manual-barcode-input" placeholder="Enter barcode number" class="w-full rounded-lg p-2 border border-gray-300">
@@ -77,32 +72,25 @@
             </div>
         </div>
 
-        <!-- Product Details Section -->
         <div id="product-details" class="mt-6 border-t pt-4 hidden">
             <h2 class="text-lg font-semibold text-gray-800" id="result-title"></h2>
             <div id="product-info" class="mt-2 space-y-2">
-                <!-- Product info will be dynamically added here -->
-            </div>
+                </div>
         </div>
         
-        <!-- Add Product Section -->
         <div id="add-product-section" class="mt-8 pt-4 border-t hidden">
             <p id="add-product-message" class="text-center text-red-500 font-medium mb-4"></p>
             <h2 class="text-lg font-bold text-gray-800 mb-4">Add a New Product for Review</h2>
             <form id="add-product-form" class="space-y-4">
                 <input type="text" id="add-barcode" placeholder="Barcode" required class="w-full rounded-lg p-2 border border-gray-300" readonly>
+                <input type="text" id="add-name-en" placeholder="Product Name" required class="w-full rounded-lg p-2 border border-gray-300">
                 <input type="text" id="add-company" placeholder="Company Name (Producer)" required class="w-full rounded-lg p-2 border border-gray-300">
                 <label class="block text-sm font-medium text-gray-700">Product Image (Front)</label>
                 <input type="file" id="add-image-front" accept="image/*" capture="environment" required class="w-full rounded-lg p-2 border border-gray-300">
-                <label class="block text-sm font-medium text-gray-700">Product Image (Side)</label>
-                <input type="file" id="add-image-side" accept="image/*" capture="environment" required class="w-full rounded-lg p-2 border border-gray-300">
-                <input type="text" id="add-name-en" placeholder="Product Name (EN)" required class="w-full rounded-lg p-2 border border-gray-300">
-                <input type="text" id="add-name-ru" placeholder="Product Name (RU)" required class="w-full rounded-lg p-2 border border-gray-300">
-                <input type="text" id="add-name-ky" placeholder="Product Name (KY)" required class="w-full rounded-lg p-2 border border-gray-300">
-                <input type="text" id="add-description-en" placeholder="Description (EN)" required class="w-full rounded-lg p-2 border border-gray-300">
-                <input type="text" id="add-description-ru" placeholder="Description (RU)" required class="w-full rounded-lg p-2 border border-gray-300">
-                <input type="text" id="add-description-ky" placeholder="Description (KY)" required class="w-full rounded-lg p-2 border border-gray-300">
-                <input type="text" id="add-price" placeholder="Price (e.g., $19.99)" required class="w-full rounded-lg p-2 border border-gray-300">
+                <label class="block text-sm font-medium text-gray-700">Product Image (Back)</label>
+                <input type="file" id="add-image-back" accept="image/*" capture="environment" required class="w-full rounded-lg p-2 border border-gray-300">
+                <label class="block text-sm font-medium text-gray-700">Product Image (Contents)</label>
+                <input type="file" id="add-image-contents" accept="image/*" capture="environment" class="w-full rounded-lg p-2 border border-gray-300">
                 <div class="flex justify-between space-x-2">
                     <button type="submit" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-green-700 transition-colors">Submit for Review</button>
                     <button type="button" id="cancel-btn" class="w-full bg-gray-400 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-gray-500 transition-colors">Cancel</button>
@@ -112,7 +100,6 @@
 
     </div>
 
-    <!-- Message Box -->
     <div id="message-box" class="fixed top-4 right-4 bg-gray-800 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-transform transform translate-x-full"></div>
 
 
@@ -134,7 +121,10 @@
                 addProductMessage: 'Product not found. Please enter details below.',
                 productAdded: 'Product added successfully!',
                 failedToAdd: 'Failed to add product.',
-                enterBarcode: 'Enter barcode number'
+                enterBarcode: 'Enter barcode number',
+                safeStatus: 'Safe',
+                notSafeStatus: 'Not Safe',
+                underReviewStatus: 'Under Review'
             },
             ru: {
                 title: 'Сканировать продукт',
@@ -146,7 +136,10 @@
                 addProductMessage: 'Продукт не найден. Пожалуйста, введите данные ниже.',
                 productAdded: 'Продукт успешно добавлен!',
                 failedToAdd: 'Не удалось добавить продукт.',
-                enterBarcode: 'Введите номер штрих-кода'
+                enterBarcode: 'Введите номер штрих-кода',
+                safeStatus: 'Безопасный',
+                notSafeStatus: 'Небезопасный',
+                underReviewStatus: 'На рассмотрении'
             },
             ky: {
                 title: 'Продуктту скандаңыз',
@@ -158,7 +151,10 @@
                 addProductMessage: 'Продукт табылган жок. Сураныч, төмөндө маалыматтарды киргизиңиз.',
                 productAdded: 'Продукт ийгиликтүү кошулду!',
                 failedToAdd: 'Продукт кошуу мүмкүн болгон жок.',
-                enterBarcode: 'Штрих-код номерин киргизиңиз'
+                enterBarcode: 'Штрих-код номерин киргизиңиз',
+                safeStatus: 'Коопсуз',
+                notSafeStatus: 'Кооптуу',
+                underReviewStatus: 'Каралууда'
             }
         };
 
@@ -180,14 +176,11 @@
             addProductMessage: document.getElementById('add-product-message'),
             addBarcode: document.getElementById('add-barcode'),
             addCompany: document.getElementById('add-company'),
-            addImageUrl: document.getElementById('add-image-url'),
+            // Updated to match the new form fields
+            addImageFront: document.getElementById('add-image-front'),
+            addImageBack: document.getElementById('add-image-back'),
+            addImageContents: document.getElementById('add-image-contents'),
             addNameEn: document.getElementById('add-name-en'),
-            addNameRu: document.getElementById('add-name-ru'),
-            addNameKy: document.getElementById('add-name-ky'),
-            addDescriptionEn: document.getElementById('add-description-en'),
-            addDescriptionRu: document.getElementById('add-description-ru'),
-            addDescriptionKy: document.getElementById('add-description-ky'),
-            addPrice: document.getElementById('add-price'),
             cancelBtn: document.getElementById('cancel-btn'),
             manualBarcodeInput: document.getElementById('manual-barcode-input'),
             manualSubmitBtn: document.getElementById('manual-submit-btn')
@@ -245,19 +238,18 @@
             elements.productInfo.innerHTML = ''; // Clear previous content
 
             try {
-                // Get the product from Firestore (products collection)
-                const productDocRef = doc(window.db, "products", decodedText);
+                // Get the product from Firestore (product collection)
+                const productDocRef = doc(window.db, "product", decodedText);
                 const productDoc = await getDoc(productDocRef);
 
                 if (productDoc.exists()) {
                     const product = productDoc.data();
-                    const productName = product.name?.[lang] || product.name?.en || '';
-                    const productDescription = product.description?.[lang] || product.description?.en || '';
+                    const productName = product.name?.en || '';
                     const imageFrontUrl = product.imageFrontUrl || '';
                     const imageBackUrl = product.imageBackUrl || '';
-                    const isSafe = product.isSafe;
+                    const imageContentsUrl = product.imageContentsUrl || '';
+                    const reviewStatus = product.reviewStatus || 'pending'; // Get the status from the document
                     const producer = product.producer || '';
-                    const contents = Array.isArray(product.contents) ? product.contents : [];
 
                     let imageHtml = '';
                     if (imageFrontUrl) {
@@ -266,48 +258,37 @@
                     if (imageBackUrl) {
                         imageHtml += `<img src="${imageBackUrl}" class="rounded-lg shadow-sm mb-2" alt="${productName} (Back)" onerror="this.style.display='none'">`;
                     }
-
-                    let safetyHtml = `<span class="inline-block px-2 py-1 rounded-full text-xs font-semibold ${isSafe ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}">${isSafe ? 'Safe' : 'Not Safe'}</span>`;
-
-                    let contentsHtml = '';
-                    if (contents.length > 0) {
-                        contentsHtml = `<div class="mt-2"><span class="font-semibold">Contents:</span> <span>${contents.join(', ')}</span></div>`;
+                    if (imageContentsUrl) {
+                        imageHtml += `<img src="${imageContentsUrl}" class="rounded-lg shadow-sm mb-2" alt="${productName} (Contents)" onerror="this.style.display='none'">`;
                     }
 
-                    let nameHtml = '';
-                    if (product.name) {
-                        nameHtml = `<div class="mt-2">
-                            <span class="font-semibold">Names:</span>
-                            <ul class="list-disc ml-5">
-                                <li>EN: ${product.name.en || ''}</li>
-                                <li>RU: ${product.name.ru || ''}</li>
-                                <li>KG: ${product.name.kg || ''}</li>
-                            </ul>
-                        </div>`;
+                    // Dynamically set the status text and color based on reviewStatus
+                    let statusText = '';
+                    let statusColorClass = '';
+                    switch (reviewStatus) {
+                        case 'safe':
+                            statusText = t.safeStatus;
+                            statusColorClass = 'bg-green-200 text-green-800';
+                            break;
+                        case 'not safe':
+                            statusText = t.notSafeStatus;
+                            statusColorClass = 'bg-red-200 text-red-800';
+                            break;
+                        case 'pending':
+                        default:
+                            statusText = t.underReviewStatus;
+                            statusColorClass = 'bg-yellow-200 text-yellow-800';
+                            break;
                     }
 
-                    let descHtml = '';
-                    if (product.description) {
-                        descHtml = `<div class="mt-2">
-                            <span class="font-semibold">Descriptions:</span>
-                            <ul class="list-disc ml-5">
-                                <li>EN: ${product.description.en || ''}</li>
-                                <li>RU: ${product.description.ru || ''}</li>
-                                <li>KG: ${product.description.kg || ''}</li>
-                            </ul>
-                        </div>`;
-                    }
+                    let safetyHtml = `<span class="inline-block px-2 py-1 rounded-full text-xs font-semibold ${statusColorClass}">${statusText}</span>`;
 
                     elements.productInfo.innerHTML = `
                         ${imageHtml}
                         <div class="p-3 bg-gray-100 rounded-lg">
                             <p class="font-bold text-lg">${productName}</p>
-                            <p class="text-sm text-gray-600">${productDescription}</p>
                             <p class="text-sm text-gray-800 font-semibold mt-1">Producer: ${producer}</p>
                             ${safetyHtml}
-                            ${contentsHtml}
-                            ${nameHtml}
-                            ${descHtml}
                         </div>
                         <p class="text-green-600 font-medium mt-2">Product found. If you want to review or update, please contact support.</p>
                     `;
@@ -422,9 +403,10 @@
         elements.addProductForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             const barcode = elements.addBarcode.value;
-            // Handle image uploads (front and side)
+            // Handle image uploads (front, back and contents)
             const imageFrontFile = elements.addImageFront.files[0];
-            const imageSideFile = elements.addImageSide.files[0];
+            const imageBackFile = elements.addImageBack.files[0];
+            const imageContentsFile = elements.addImageContents.files[0];
 
             // For demo: convert images to base64 (in production, upload to storage and save URLs)
             function toBase64(file) {
@@ -437,35 +419,33 @@
             }
 
             let imageFrontBase64 = '';
-            let imageSideBase64 = '';
+            let imageBackBase64 = '';
+            let imageContentsBase64 = '';
+            // Added null checks to prevent errors if files aren't selected
             if (imageFrontFile) {
                 imageFrontBase64 = await toBase64(imageFrontFile);
             }
-            if (imageSideFile) {
-                imageSideBase64 = await toBase64(imageSideFile);
+            if (imageBackFile) {
+                imageBackBase64 = await toBase64(imageBackFile);
+            }
+            if (imageContentsFile) {
+                imageContentsBase64 = await toBase64(imageContentsFile);
             }
 
             const newProduct = {
                 imageFront: imageFrontBase64,
-                imageSide: imageSideBase64,
+                imageBack: imageBackBase64,
+                imageContents: imageContentsBase64,
                 name: {
                     en: elements.addNameEn.value,
-                    ru: elements.addNameRu.value,
-                    ky: elements.addNameKy.value
                 },
                 company: elements.addCompany.value,
-                description: {
-                    en: elements.addDescriptionEn.value,
-                    ru: elements.addDescriptionRu.value,
-                    ky: elements.addDescriptionKy.value
-                },
-                price: elements.addPrice.value,
                 reviewStatus: 'pending'
             };
 
             try {
-                // Add the new product to Firestore (products collection)
-                const productDocRef = doc(window.db, "products", barcode);
+                // Add the new product to Firestore (product collection)
+                const productDocRef = doc(window.db, "product", barcode);
                 await setDoc(productDocRef, newProduct);
                 showMessage('Product submitted for review. Thank you!');
                 elements.addProductForm.reset();
