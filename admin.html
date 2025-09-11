@@ -41,12 +41,16 @@
         const productList = document.getElementById('product-list');
         const userInfo = document.getElementById('user-info');
         const messageBox = document.getElementById('message-box');
+        const refreshBtn = document.getElementById('refresh-btn');
 
         // Show message
         function showMessage(msg, color = 'bg-blue-600') {
             messageBox.textContent = msg;
-            messageBox.className = `fixed top-4 right-4 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 ${color}`;
-            setTimeout(() => { messageBox.textContent = ''; }, 3000);
+            messageBox.className = `fixed top-4 right-4 text-white text-sm px-4 py-2 rounded-lg shadow-xl z-50 transition-opacity duration-300 ${color} opacity-100`;
+            setTimeout(() => {
+                messageBox.classList.remove('opacity-100');
+                messageBox.classList.add('opacity-0');
+            }, 3000);
         }
 
         // Auth state
@@ -54,23 +58,17 @@
             if (user) {
                 // Get user info from Firestore
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
-                if (!userDoc.exists()) {
-                    // Save user info if not exists
-                    await setDoc(doc(db, 'users', user.uid), {
-                        email: user.email,
-                        role: 'reviewer', // default role
-                        createdAt: new Date().toISOString()
-                    });
-                }
                 const userData = userDoc.exists() ? userDoc.data() : { email: user.email, role: 'reviewer' };
+                
                 userInfo.textContent = `Logged in as: ${userData.email} (${userData.role})`;
                 loginSection.classList.add('hidden');
                 dashboardSection.classList.remove('hidden');
-                loadProducts(userData.role);
+                loadProducts();
             } else {
                 loginSection.classList.remove('hidden');
                 dashboardSection.classList.add('hidden');
                 userInfo.textContent = '';
+                productList.innerHTML = '';
             }
         });
 
@@ -78,53 +76,64 @@
         loginBtn.addEventListener('click', async () => {
             try {
                 await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+                showMessage('Logged in successfully!', 'bg-green-600');
             } catch (err) {
-                showMessage('Login failed: ' + err.message, 'bg-red-600');
+                let errorMessage = 'Login failed. Please check your credentials.';
+                if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+                    errorMessage = 'Incorrect email or password.';
+                }
+                showMessage(errorMessage, 'bg-red-600');
             }
         });
 
         // Logout
         logoutBtn.addEventListener('click', async () => {
             await signOut(auth);
+            showMessage('Logged out successfully.', 'bg-gray-600');
         });
 
         // Load products pending review
-        async function loadProducts(role) {
-            productList.innerHTML = '<div class="text-gray-500">Loading...</div>';
+        async function loadProducts() {
+            productList.innerHTML = '<div class="text-gray-500">Loading products pending review...</div>';
             const q = query(collection(db, 'product'), where('reviewStatus', '==', 'pending'));
-            const snapshot = await getDocs(q);
-            if (snapshot.empty) {
-                productList.innerHTML = '<div class="text-gray-500">No products pending review.</div>';
-                return;
+            
+            try {
+                const snapshot = await getDocs(q);
+                if (snapshot.empty) {
+                    productList.innerHTML = '<div class="text-gray-500">No products are pending review.</div>';
+                    return;
+                }
+                productList.innerHTML = '';
+                snapshot.forEach(docSnap => {
+                    const p = docSnap.data();
+                    const barcode = docSnap.id;
+                    productList.innerHTML += `
+                    <div class="bg-white rounded-lg shadow p-4 mb-4">
+                        <div class="font-bold">Barcode: ${barcode}</div>
+                        <div>Name: ${p.name?.en || 'N/A'}</div>
+                        <div>Company: ${p.company || 'N/A'}</div>
+                        <div class="flex flex-wrap space-x-2 mt-2">
+                            ${p.imageFront ? `<img src="${p.imageFront}" class="w-20 h-20 object-cover rounded" alt="Front">` : ''}
+                            ${p.imageBack ? `<img src="${p.imageBack}" class="w-20 h-20 object-cover rounded" alt="Back">` : ''}
+                            ${p.imageContents ? `<img src="${p.imageContents}" class="w-20 h-20 object-cover rounded" alt="Contents">` : ''}
+                        </div>
+                        <div class="mt-4">
+                            <button class="bg-green-600 text-white px-3 py-1 rounded mr-2" onclick="window.reviewProduct('${barcode}', 'safe')">Mark Safe</button>
+                            <button class="bg-red-600 text-white px-3 py-1 rounded" onclick="window.reviewProduct('${barcode}', 'not safe')">Mark Not Safe</button>
+                            <button class="bg-yellow-600 text-white px-3 py-1 rounded" onclick="window.reviewProduct('${barcode}', 'pending')">Keep Pending</button>
+                        </div>
+                    </div>
+                    `;
+                });
+            } catch (err) {
+                showMessage('Failed to load products: ' + err.message, 'bg-red-600');
+                productList.innerHTML = '<div class="text-red-500">Error loading products.</div>';
             }
-            productList.innerHTML = '';
-            snapshot.forEach(docSnap => {
-                const p = docSnap.data();
-                const barcode = docSnap.id;
-                productList.innerHTML += `
-                <div class="bg-white rounded-lg shadow p-4 mb-4">
-                    <div class="font-bold">Barcode: ${barcode}</div>
-                    <div>Name: ${p.name?.en || ''}</div>
-                    <div>Company: ${p.company || ''}</div>
-                    <div class="flex space-x-2 mt-2">
-                        ${p.imageFront ? `<img src="${p.imageFront}" class="w-20 h-20 object-cover rounded" alt="Front">` : ''}
-                        ${p.imageBack ? `<img src="${p.imageBack}" class="w-20 h-20 object-cover rounded" alt="Back">` : ''}
-                        ${p.imageContents ? `<img src="${p.imageContents}" class="w-20 h-20 object-cover rounded" alt="Contents">` : ''}
-                    </div>
-                    <div class="mt-2">
-                        <button class="bg-green-600 text-white px-3 py-1 rounded mr-2" onclick="window.reviewProduct('${barcode}', 'safe')">Mark Safe</button>
-                        <button class="bg-red-600 text-white px-3 py-1 rounded mr-2" onclick="window.reviewProduct('${barcode}', 'not safe')">Mark Not Safe</button>
-                        <button class="bg-yellow-600 text-white px-3 py-1 rounded" onclick="window.reviewProduct('${barcode}', 'pending')">Keep Pending</button>
-                    </div>
-                </div>
-                `;
-            });
         }
 
         // Review product (update status)
         window.reviewProduct = async (barcode, status) => {
             try {
-                // Get current user
                 const user = auth.currentUser;
                 let reviewedBy = '';
                 let reviewedRole = '';
@@ -139,16 +148,23 @@
                     reviewedRole: reviewedRole,
                     reviewedAt: new Date().toISOString()
                 });
-                showMessage('Product updated!');
+                showMessage(`Product ${barcode} marked as '${status}'.`, 'bg-green-600');
+                // Reload the list to remove the reviewed product
                 loadProducts();
             } catch (err) {
                 showMessage('Failed to update: ' + err.message, 'bg-red-600');
             }
         };
+
+        // Event listener for the Refresh button
+        refreshBtn.addEventListener('click', async () => {
+            loadProducts();
+            showMessage('Product list refreshed!', 'bg-blue-600');
+        });
     </script>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
-    <div id="message-box"></div>
+    <div id="message-box" class="opacity-0"></div>
     <div id="login-section" class="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm">
         <h1 class="text-xl font-bold mb-4">Admin Login</h1>
         <input type="email" id="email" placeholder="Email" class="w-full rounded-lg p-2 border border-gray-300 mb-2">
@@ -158,7 +174,10 @@
     <div id="dashboard-section" class="hidden w-full max-w-2xl">
         <div class="flex justify-between items-center mb-6">
             <div id="user-info" class="font-semibold text-gray-700"></div>
-            <button id="logout-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-gray-600 transition-colors">Logout</button>
+            <div class="flex space-x-2">
+                <button id="refresh-btn" class="bg-blue-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-blue-600 transition-colors">Refresh</button>
+                <button id="logout-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-full shadow-md hover:bg-gray-600 transition-colors">Logout</button>
+            </div>
         </div>
         <h2 class="text-lg font-bold mb-4">Products Pending Review</h2>
         <div id="product-list"></div>
